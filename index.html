@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LuminaCam AI Ultra Pro</title>
+<title>LuminaCam AI Pro</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
@@ -15,9 +15,9 @@
 body{
 margin:0;
 background:#000;
-color:#fff;
 font-family:Poppins;
 overflow:hidden;
+color:white;
 }
 
 video{
@@ -33,7 +33,7 @@ top:0;
 left:0;
 }
 
-.top{
+.top-bar{
 position:absolute;
 top:10px;
 width:100%;
@@ -42,7 +42,7 @@ justify-content:space-around;
 z-index:10;
 }
 
-.bottom{
+.bottom-bar{
 position:absolute;
 bottom:0;
 width:100%;
@@ -51,13 +51,6 @@ background:linear-gradient(transparent,rgba(0,0,0,.8));
 display:flex;
 flex-direction:column;
 align-items:center;
-}
-
-.controls{
-display:flex;
-align-items:center;
-gap:30px;
-margin-top:10px;
 }
 
 button{
@@ -79,8 +72,8 @@ height:70px;
 border-radius:50%;
 border:4px solid white;
 display:flex;
-justify-content:center;
 align-items:center;
+justify-content:center;
 }
 
 .inner{
@@ -90,22 +83,17 @@ background:white;
 border-radius:50%;
 }
 
-.record{
-background:red;
-}
-
 .filters{
 display:flex;
-overflow:auto;
 gap:10px;
+overflow:auto;
 width:100%;
-padding:5px;
 }
 
 .filter{
-min-width:60px;
 font-size:11px;
 text-align:center;
+min-width:60px;
 }
 
 .thumb{
@@ -127,20 +115,34 @@ display:none;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-z-index:50;
+z-index:20;
 }
 
-#gallery img,#gallery video{
+#gallery img{
 max-width:95%;
 max-height:80%;
 }
 
-.zoom{
+#status{
 position:absolute;
-top:60px;
+top:80px;
 left:50%;
 transform:translateX(-50%);
-width:70%;
+background:#00f2ff33;
+padding:5px 15px;
+border-radius:20px;
+border:1px solid #00f2ff;
+display:none;
+}
+
+#settings{
+position:fixed;
+bottom:0;
+width:100%;
+background:#111;
+padding:20px;
+display:none;
+z-index:30;
 }
 
 </style>
@@ -151,19 +153,20 @@ width:70%;
 <video id="video" autoplay playsinline></video>
 <canvas id="overlay"></canvas>
 
-<input type="range" min="1" max="3" step="0.1" value="1" class="zoom" id="zoom">
+<div id="status"></div>
 
-<div class="top">
-<button onclick="switchCamera()">Switch</button>
+<div class="top-bar">
+<button onclick="toggleFlash()">Flash</button>
 <button onclick="toggleTimer()">Timer</button>
-<button onclick="toggleRecord()">Video</button>
+<button onclick="switchCamera()">Switch</button>
+<button onclick="openSettings()">Settings</button>
 </div>
 
-<div class="bottom">
+<div class="bottom-bar">
 
 <div class="filters" id="filters"></div>
 
-<div class="controls">
+<div style="display:flex;gap:25px;margin-top:10px">
 
 <div class="thumb" id="thumb" onclick="openGallery()"></div>
 
@@ -171,17 +174,33 @@ width:70%;
 <div class="inner"></div>
 </div>
 
-<button onclick="deleteLast()">Delete</button>
-
 </div>
 
 </div>
 
 <div id="gallery">
+
 <button onclick="closeGallery()">Close</button>
-<img id="gimg">
-<video id="gvid" controls></video>
-<button onclick="downloadFile()">Download</button>
+
+<img id="gallery-img">
+
+<div style="margin-top:20px;display:flex;gap:20px">
+
+<button onclick="downloadImg()">Download</button>
+
+<button onclick="enhancePhoto()">Enhance</button>
+
+</div>
+
+</div>
+
+<div id="settings">
+
+<button onclick="toggleAI()">Toggle AI Face Detection</button>
+<button onclick="video.style.filter='none'">Reset Filters</button>
+<button onclick="clearGallery()">Clear Gallery</button>
+<button onclick="closeSettings()">Close</button>
+
 </div>
 
 <script>
@@ -190,35 +209,41 @@ const video=document.getElementById("video")
 const overlay=document.getElementById("overlay")
 const ctx=overlay.getContext("2d")
 
-let model
+const status=document.getElementById("status")
+
 let stream
 let facing="environment"
+let model
 
+let lastPhoto=null
 let timer=0
-let recorder
-let recording=false
-let chunks=[]
-
-let media=[]
-let currentMedia=null
+let flash=false
 
 const filters=[
 {name:"Normal",val:"none"},
-{name:"Noir",val:"grayscale(1) contrast(1.2)"},
+{name:"Noir",val:"grayscale(1)"},
 {name:"Vintage",val:"sepia(.6)"},
 {name:"Aqua",val:"hue-rotate(160deg)"},
-{name:"Vivid",val:"saturate(2)"},
-{name:"Warm",val:"sepia(.3) saturate(1.5)"},
-{name:"Cool",val:"hue-rotate(200deg)"}
+{name:"Vivid",val:"saturate(2)"}
 ]
+
+function showStatus(msg){
+
+status.innerText=msg
+status.style.display="block"
+
+setTimeout(()=>{
+status.style.display="none"
+},1500)
+
+}
 
 async function startCamera(){
 
 if(stream)stream.getTracks().forEach(t=>t.stop())
 
 stream=await navigator.mediaDevices.getUserMedia({
-video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},
-audio:true
+video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}}
 })
 
 video.srcObject=stream
@@ -231,8 +256,10 @@ setupAI()
 }
 
 function switchCamera(){
+
 facing=facing==="environment"?"user":"environment"
 startCamera()
+
 }
 
 async function setupAI(){
@@ -244,6 +271,8 @@ detect()
 }
 
 async function detect(){
+
+if(!model)return
 
 if(video.videoWidth>0){
 
@@ -257,9 +286,11 @@ ctx.clearRect(0,0,overlay.width,overlay.height)
 preds.forEach(p=>{
 const s=p.topLeft
 const e=p.bottomRight
+
 ctx.strokeStyle="#00f2ff"
 ctx.lineWidth=3
 ctx.strokeRect(s[0],s[1],e[0]-s[0],e[1]-s[1])
+
 })
 
 }
@@ -292,134 +323,89 @@ snap()
 function snap(){
 
 const canvas=document.createElement("canvas")
+
 canvas.width=video.videoWidth
 canvas.height=video.videoHeight
 
 const c=canvas.getContext("2d")
+
 c.filter=getComputedStyle(video).filter
+
 c.drawImage(video,0,0)
 
-const img=canvas.toDataURL("image/jpeg")
+lastPhoto=canvas.toDataURL("image/jpeg")
 
-media.push({type:"img",data:img})
-
-saveMedia()
-
-updateThumb()
-
-}
-
-function toggleRecord(){
-
-if(!recording){
-
-chunks=[]
-
-recorder=new MediaRecorder(stream)
-
-recorder.ondataavailable=e=>chunks.push(e.data)
-
-recorder.onstop=saveVideo
-
-recorder.start()
-
-recording=true
-
-}else{
-
-recorder.stop()
-
-recording=false
-
-}
-
-}
-
-function saveVideo(){
-
-const blob=new Blob(chunks,{type:"video/webm"})
-const url=URL.createObjectURL(blob)
-
-media.push({type:"vid",data:url})
-
-saveMedia()
-
-updateThumb()
-
-}
-
-function updateThumb(){
-
-if(media.length===0)return
-
-const last=media[media.length-1]
-
-if(last.type==="img")
-thumb.style.backgroundImage=`url(${last.data})`
-
-else
-thumb.style.backgroundImage="url(https://cdn-icons-png.flaticon.com/512/727/727245.png)"
+thumb.style.backgroundImage=`url(${lastPhoto})`
 
 }
 
 function openGallery(){
 
-if(media.length===0)return
-
-currentMedia=media[media.length-1]
+if(!lastPhoto)return
 
 document.getElementById("gallery").style.display="flex"
-
-if(currentMedia.type==="img"){
-gimg.src=currentMedia.data
-gimg.style.display="block"
-gvid.style.display="none"
-}else{
-gvid.src=currentMedia.data
-gvid.style.display="block"
-gimg.style.display="none"
-}
+document.getElementById("gallery-img").src=lastPhoto
 
 }
 
 function closeGallery(){
+
 gallery.style.display="none"
+
 }
 
-function downloadFile(){
+function downloadImg(){
 
 const a=document.createElement("a")
 
-a.href=currentMedia.data
-a.download="Lumina_"+Date.now()
+a.href=lastPhoto
+a.download="Lumina_"+Date.now()+".jpg"
 
 a.click()
 
 }
 
-function deleteLast(){
+function enhancePhoto(){
 
-media.pop()
+if(!lastPhoto)return
 
-saveMedia()
+const img=new Image()
 
-updateThumb()
+img.onload=function(){
+
+const canvas=document.createElement("canvas")
+canvas.width=img.width
+canvas.height=img.height
+
+const c=canvas.getContext("2d")
+
+c.filter="contrast(1.3) saturate(1.3) brightness(1.1)"
+
+c.drawImage(img,0,0)
+
+lastPhoto=canvas.toDataURL("image/jpeg")
+
+document.getElementById("gallery-img").src=lastPhoto
+
+showStatus("AI Enhancement Done")
 
 }
 
-function saveMedia(){
-
-localStorage.setItem("luminaMedia",JSON.stringify(media))
+img.src=lastPhoto
 
 }
 
-function loadMedia(){
+function toggleFlash(){
 
-const m=localStorage.getItem("luminaMedia")
+flash=!flash
 
-if(m)media=JSON.parse(m)
-
-updateThumb()
+if(flash){
+video.style.filter="brightness(1.5)"
+showStatus("Flash ON")
+}else{
+video.style.filter="none"
+showStatus("Flash OFF")
+}
 
 }
 
@@ -427,7 +413,43 @@ function toggleTimer(){
 
 timer=timer===0?3:(timer===3?10:0)
 
-alert("Timer "+(timer===0?"OFF":timer+"s"))
+showStatus(timer===0?"Timer OFF":"Timer "+timer+"s")
+
+}
+
+function openSettings(){
+
+settings.style.display="block"
+
+}
+
+function closeSettings(){
+
+settings.style.display="none"
+
+}
+
+function toggleAI(){
+
+if(model){
+
+model=null
+showStatus("AI Disabled")
+
+}else{
+
+setupAI()
+showStatus("AI Enabled")
+
+}
+
+}
+
+function clearGallery(){
+
+lastPhoto=null
+thumb.style.backgroundImage=""
+showStatus("Gallery Cleared")
 
 }
 
@@ -443,18 +465,17 @@ div.innerHTML=`<div style="width:45px;height:45px;border-radius:50%;background:#
 
 div.onclick=()=>video.style.filter=f.val
 
-filtersBox.appendChild(div)
+filters.appendChild(div)
 
 })
 
 }
 
-zoom.oninput=()=>video.style.transform="scale("+zoom.value+")"
-
 window.onload=()=>{
+
 loadFilters()
-loadMedia()
 startCamera()
+
 }
 
 </script>
