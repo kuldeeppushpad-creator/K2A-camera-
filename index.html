@@ -2,136 +2,188 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LuminaCam AI Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LuminaCam AI | Pro</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
 
 <style>
 
-body{
+:root{
+--glass: rgba(255,255,255,0.15);
+--accent:#00f2ff;
+--bg:#000;
+}
+
+body,html{
 margin:0;
-background:#000;
-font-family:Poppins;
+padding:0;
+width:100%;
+height:100%;
+background:var(--bg);
+font-family:'Poppins',sans-serif;
 overflow:hidden;
 color:white;
 }
 
+#app-container{
+position:relative;
+width:100%;
+height:100%;
+display:flex;
+flex-direction:column;
+}
+
 video{
-position:absolute;
 width:100%;
 height:100%;
 object-fit:cover;
-}
-
-canvas{
 position:absolute;
 top:0;
 left:0;
 }
 
-.top-bar{
+canvas#overlay{
 position:absolute;
-top:10px;
+top:0;
+left:0;
 width:100%;
+height:100%;
+z-index:2;
+pointer-events:none;
+}
+
+.ui-overlay{
+position:absolute;
+z-index:10;
+width:100%;
+pointer-events:none;
+}
+
+.ui-overlay button,.ui-overlay div{
+pointer-events:auto;
+}
+
+.top-bar{
+top:0;
+height:70px;
 display:flex;
 justify-content:space-around;
-z-index:10;
+align-items:center;
+background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);
 }
 
 .bottom-bar{
-position:absolute;
 bottom:0;
-width:100%;
-padding:20px;
-background:linear-gradient(transparent,rgba(0,0,0,.8));
+height:180px;
+background:linear-gradient(to top,rgba(0,0,0,0.7),transparent);
 display:flex;
 flex-direction:column;
 align-items:center;
+padding-bottom:20px;
 }
 
-button{
-border:2px solid white;
-background:transparent;
-color:white;
-padding:8px 15px;
-border-radius:25px;
-transition:.2s;
-}
-
-button:active{
-transform:scale(.85);
-}
-
-.shutter{
-width:70px;
-height:70px;
-border-radius:50%;
+.shutter-btn{
+width:75px;
+height:75px;
 border:4px solid white;
+border-radius:50%;
 display:flex;
-align-items:center;
 justify-content:center;
+align-items:center;
 }
 
-.inner{
-width:55px;
-height:55px;
+.shutter-inner{
+width:60px;
+height:60px;
 background:white;
 border-radius:50%;
 }
 
-.filters{
+.icon-btn{
+background:rgba(255,255,255,0.1);
+border:1px solid rgba(255,255,255,0.2);
+color:white;
+width:45px;
+height:45px;
+border-radius:50%;
 display:flex;
-gap:10px;
-overflow:auto;
+justify-content:center;
+align-items:center;
+}
+
+.filter-container{
+display:flex;
+overflow-x:auto;
 width:100%;
+padding:10px;
+gap:15px;
 }
 
-.filter{
-font-size:11px;
-text-align:center;
+.filter-box{
 min-width:60px;
+text-align:center;
+font-size:10px;
 }
 
-.thumb{
-width:50px;
-height:50px;
-border-radius:8px;
-border:2px solid white;
-background-size:cover;
+.filter-preview{
+width:45px;
+height:45px;
+border-radius:50%;
+border:2px solid transparent;
+margin-bottom:4px;
 }
 
-#gallery{
+.filter-preview.active{
+border-color:var(--accent);
+}
+
+#gallery-modal{
 position:fixed;
 top:0;
 left:0;
 width:100%;
 height:100%;
-background:black;
+background:#000;
+z-index:100;
 display:none;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-z-index:20;
 }
 
-#gallery img{
+#gallery-img{
 max-width:95%;
 max-height:80%;
+border-radius:10px;
 }
 
-#status{
+#status-msg{
 position:absolute;
 top:80px;
 left:50%;
 transform:translateX(-50%);
-background:#00f2ff33;
+background:rgba(0,242,255,0.2);
 padding:5px 15px;
 border-radius:20px;
-border:1px solid #00f2ff;
+font-size:12px;
+border:1px solid var(--accent);
+display:none;
+z-index:20;
+}
+
+.flash{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:white;
+z-index:1000;
 display:none;
 }
 
@@ -142,7 +194,7 @@ width:100%;
 background:#111;
 padding:20px;
 display:none;
-z-index:30;
+z-index:200;
 }
 
 </style>
@@ -150,100 +202,91 @@ z-index:30;
 
 <body>
 
-<video id="video" autoplay playsinline></video>
+<div class="flash" id="flash-effect"></div>
+
+<div id="app-container">
+
+<video id="video" autoplay playsinline muted></video>
 <canvas id="overlay"></canvas>
 
-<div id="status"></div>
+<div id="status-msg">AI Face Tracking</div>
 
-<div class="top-bar">
-<button onclick="toggleFlash()">Flash</button>
-<button onclick="toggleTimer()">Timer</button>
-<button onclick="switchCamera()">Switch</button>
-<button onclick="openSettings()">Settings</button>
+<div class="ui-overlay top-bar">
+<button class="icon-btn" onclick="toggleFlash()"><i class="fas fa-bolt"></i></button>
+<button class="icon-btn" onclick="toggleTimer()"><i class="fas fa-clock"></i></button>
+<button class="icon-btn" onclick="switchCamera()"><i class="fas fa-camera-rotate"></i></button>
 </div>
 
-<div class="bottom-bar">
+<div class="ui-overlay bottom-bar">
 
-<div class="filters" id="filters"></div>
+<div class="filter-container" id="filters"></div>
 
-<div style="display:flex;gap:25px;margin-top:10px">
+<div style="display:flex;width:100%;justify-content:space-around;align-items:center;margin-top:10px;">
 
-<div class="thumb" id="thumb" onclick="openGallery()"></div>
+<div id="last-thumb" onclick="openGallery()" style="width:50px;height:50px;border-radius:8px;border:2px solid white;background-size:cover;"></div>
 
-<div class="shutter" onclick="capture()">
-<div class="inner"></div>
+<div class="shutter-btn" onclick="handleCapture()">
+<div class="shutter-inner"></div>
+</div>
+
+<button class="icon-btn" onclick="openSettings()"><i class="fas fa-cog"></i></button>
+
 </div>
 
 </div>
-
 </div>
 
-<div id="gallery">
+<div id="gallery-modal">
 
-<button onclick="closeGallery()">Close</button>
+<button class="icon-btn" style="position:absolute;top:30px;right:20px;" onclick="closeGallery()">
+<i class="fas fa-times"></i>
+</button>
 
 <img id="gallery-img">
 
-<div style="margin-top:20px;display:flex;gap:20px">
+<div style="margin-top:25px;display:flex;gap:30px;">
 
-<button onclick="downloadImg()">Download</button>
-
-<button onclick="enhancePhoto()">Enhance</button>
+<button class="icon-btn" onclick="downloadImg()"><i class="fas fa-download"></i></button>
+<button class="icon-btn" onclick="enhancePhoto()"><i class="fas fa-magic"></i></button>
 
 </div>
 
 </div>
 
 <div id="settings">
-
-<button onclick="toggleAI()">Toggle AI Face Detection</button>
-<button onclick="video.style.filter='none'">Reset Filters</button>
-<button onclick="clearGallery()">Clear Gallery</button>
+<button onclick="toggleAI()">Toggle AI Detection</button>
+<button onclick="video.style.filter='none'">Reset Filter</button>
 <button onclick="closeSettings()">Close</button>
-
 </div>
 
 <script>
 
-const video=document.getElementById("video")
-const overlay=document.getElementById("overlay")
-const ctx=overlay.getContext("2d")
+const video=document.getElementById('video')
+const overlay=document.getElementById('overlay')
+const ctx=overlay.getContext('2d')
+const statusMsg=document.getElementById('status-msg')
 
-const status=document.getElementById("status")
-
-let stream
-let facing="environment"
-let model
-
+let model,stream
+let isFront=false
 let lastPhoto=null
-let timer=0
-let flash=false
+let captureTimer=0
+let aiEnabled=true
 
 const filters=[
-{name:"Normal",val:"none"},
-{name:"Noir",val:"grayscale(1)"},
-{name:"Vintage",val:"sepia(.6)"},
-{name:"Aqua",val:"hue-rotate(160deg)"},
-{name:"Vivid",val:"saturate(2)"}
+{name:'None',val:'none'},
+{name:'Noir',val:'grayscale(1) contrast(1.2)'},
+{name:'Vintage',val:'sepia(.6)'},
+{name:'Aqua',val:'hue-rotate(160deg)'},
+{name:'Vivid',val:'saturate(2)'},
+{name:'Bloom',val:'brightness(1.2)'}
 ]
 
-function showStatus(msg){
-
-status.innerText=msg
-status.style.display="block"
-
-setTimeout(()=>{
-status.style.display="none"
-},1500)
-
-}
-
-async function startCamera(){
+async function initCamera(){
 
 if(stream)stream.getTracks().forEach(t=>t.stop())
 
 stream=await navigator.mediaDevices.getUserMedia({
-video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}}
+video:{facingMode:isFront?"user":"environment",width:{ideal:1280},height:{ideal:720}}
 })
 
 video.srcObject=stream
@@ -255,16 +298,18 @@ setupAI()
 
 }
 
-function switchCamera(){
-
-facing=facing==="environment"?"user":"environment"
-startCamera()
-
-}
-
 async function setupAI(){
 
+if(!aiEnabled)return
+
+statusMsg.style.display='block'
+statusMsg.innerText='Loading AI'
+
 model=await blazeface.load()
+
+statusMsg.innerText='AI Ready'
+
+setTimeout(()=>statusMsg.style.display='none',2000)
 
 detect()
 
@@ -272,7 +317,7 @@ detect()
 
 async function detect(){
 
-if(!model)return
+if(!model||video.paused)return
 
 if(video.videoWidth>0){
 
@@ -284,11 +329,13 @@ const preds=await model.estimateFaces(video,false)
 ctx.clearRect(0,0,overlay.width,overlay.height)
 
 preds.forEach(p=>{
+
+ctx.strokeStyle="#00f2ff"
+ctx.lineWidth=4
+
 const s=p.topLeft
 const e=p.bottomRight
 
-ctx.strokeStyle="#00f2ff"
-ctx.lineWidth=3
 ctx.strokeRect(s[0],s[1],e[0]-s[0],e[1]-s[1])
 
 })
@@ -299,43 +346,55 @@ requestAnimationFrame(detect)
 
 }
 
-function capture(){
+function handleCapture(){
 
-if(timer>0){
+if(captureTimer>0){
 
-let c=timer
+let count=captureTimer
 
-const t=setInterval(()=>{
+statusMsg.style.display='block'
 
-c--
+const timer=setInterval(()=>{
 
-if(c<0){
-clearInterval(t)
-snap()
+statusMsg.innerText=`Timer ${count}`
+
+count--
+
+if(count<0){
+
+clearInterval(timer)
+
+statusMsg.style.display='none'
+
+capture()
+
 }
 
 },1000)
 
-}else snap()
+}else capture()
 
 }
 
-function snap(){
+function capture(){
 
-const canvas=document.createElement("canvas")
+const flash=document.getElementById('flash-effect')
+flash.style.display='block'
 
+setTimeout(()=>flash.style.display='none',100)
+
+const canvas=document.createElement('canvas')
 canvas.width=video.videoWidth
 canvas.height=video.videoHeight
 
-const c=canvas.getContext("2d")
+const c=canvas.getContext('2d')
 
 c.filter=getComputedStyle(video).filter
-
 c.drawImage(video,0,0)
 
-lastPhoto=canvas.toDataURL("image/jpeg")
+lastPhoto=canvas.toDataURL('image/jpeg')
 
-thumb.style.backgroundImage=`url(${lastPhoto})`
+document.getElementById('last-thumb').style.backgroundImage=`url(${lastPhoto})`
 
 }
 
@@ -343,51 +402,45 @@ function openGallery(){
 
 if(!lastPhoto)return
 
-document.getElementById("gallery").style.display="flex"
-document.getElementById("gallery-img").src=lastPhoto
+document.getElementById('gallery-img').src=lastPhoto
+document.getElementById('gallery-modal').style.display='flex'
 
 }
 
 function closeGallery(){
 
-gallery.style.display="none"
+document.getElementById('gallery-modal').style.display='none'
 
 }
 
 function downloadImg(){
 
-const a=document.createElement("a")
-
-a.href=lastPhoto
+const a=document.createElement('a')
 a.download="Lumina_"+Date.now()+".jpg"
-
+a.href=lastPhoto
 a.click()
 
 }
 
 function enhancePhoto(){
 
-if(!lastPhoto)return
-
 const img=new Image()
 
 img.onload=function(){
 
-const canvas=document.createElement("canvas")
+const canvas=document.createElement('canvas')
 canvas.width=img.width
 canvas.height=img.height
 
-const c=canvas.getContext("2d")
+const c=canvas.getContext('2d')
 
 c.filter="contrast(1.3) saturate(1.3) brightness(1.1)"
 
 c.drawImage(img,0,0)
 
-lastPhoto=canvas.toDataURL("image/jpeg")
+lastPhoto=canvas.toDataURL('image/jpeg')
 
-document.getElementById("gallery-img").src=lastPhoto
-
-showStatus("AI Enhancement Done")
+document.getElementById('gallery-img').src=lastPhoto
 
 }
 
@@ -397,75 +450,74 @@ img.src=lastPhoto
 
 function toggleFlash(){
 
-flash=!flash
-
-if(flash){
 video.style.filter="brightness(1.5)"
-showStatus("Flash ON")
-}else{
-video.style.filter="none"
-showStatus("Flash OFF")
-}
+
+setTimeout(()=>video.style.filter="none",200)
 
 }
 
 function toggleTimer(){
 
-timer=timer===0?3:(timer===3?10:0)
+captureTimer=captureTimer===0?3:(captureTimer===3?10:0)
 
-showStatus(timer===0?"Timer OFF":"Timer "+timer+"s")
+alert("Timer "+(captureTimer===0?"OFF":captureTimer+"s"))
+
+}
+
+function switchCamera(){
+
+isFront=!isFront
+
+initCamera()
 
 }
 
 function openSettings(){
 
-settings.style.display="block"
+document.getElementById('settings').style.display='block'
 
 }
 
 function closeSettings(){
 
-settings.style.display="none"
+document.getElementById('settings').style.display='none'
 
 }
 
 function toggleAI(){
 
-if(model){
+aiEnabled=!aiEnabled
 
-model=null
-showStatus("AI Disabled")
-
-}else{
-
-setupAI()
-showStatus("AI Enabled")
-
-}
-
-}
-
-function clearGallery(){
-
-lastPhoto=null
-thumb.style.backgroundImage=""
-showStatus("Gallery Cleared")
+if(aiEnabled)setupAI()
 
 }
 
 function loadFilters(){
 
+const container=document.getElementById('filters')
+
 filters.forEach(f=>{
 
-const div=document.createElement("div")
+const div=document.createElement('div')
 
-div.className="filter"
+div.className='filter-box'
 
-div.innerHTML=`<div style="width:45px;height:45px;border-radius:50%;background:#444;filter:${f.val}"></div>${f.name}`
+div.innerHTML=`
+<div class="filter-preview" style="filter:${f.val};background:#444"></div>
+<span>${f.name}</span>
+`
 
-div.onclick=()=>video.style.filter=f.val
+div.onclick=()=>{
 
-filters.appendChild(div)
+video.style.filter=f.val
+
+document.querySelectorAll('.filter-preview').forEach(el=>el.classList.remove('active'))
+
+div.querySelector('.filter-preview').classList.add('active')
+
+}
+
+container.appendChild(div)
 
 })
 
@@ -474,7 +526,8 @@ filters.appendChild(div)
 window.onload=()=>{
 
 loadFilters()
-startCamera()
+
+initCamera()
 
 }
 
