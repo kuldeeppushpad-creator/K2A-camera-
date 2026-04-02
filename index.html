@@ -1,346 +1,463 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LuminaCam AI | Pro</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- TensorFlow.js - Stable Versions -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuminaCam AI Ultra Pro</title>
 
-    <style>
-        :root {
-            --glass: rgba(255, 255, 255, 0.15);
-            --accent: #00f2ff;
-            --bg: #000;
-        }
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background: var(--bg); font-family: 'Poppins', sans-serif;
-            overflow: hidden; color: white;
-        }
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
 
-        /* Camera Viewport */
-        #app-container {
-            position: relative; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-        }
+<style>
 
-        video {
-            width: 100%; height: 100%; object-fit: cover;
-            position: absolute; top: 0; left: 0;
-        }
+body{
+margin:0;
+background:#000;
+color:#fff;
+font-family:Poppins;
+overflow:hidden;
+}
 
-        canvas#overlay {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; z-index: 2; pointer-events: none;
-        }
+video{
+position:absolute;
+width:100%;
+height:100%;
+object-fit:cover;
+}
 
-        /* UI Elements */
-        .ui-overlay {
-            position: absolute; z-index: 10; width: 100%;
-            pointer-events: none;
-        }
-        .ui-overlay button, .ui-overlay div { pointer-events: auto; }
+canvas{
+position:absolute;
+top:0;
+left:0;
+}
 
-        .top-bar {
-            top: 0; height: 70px;
-            display: flex; justify-content: space-around; align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
-        }
+.top{
+position:absolute;
+top:10px;
+width:100%;
+display:flex;
+justify-content:space-around;
+z-index:10;
+}
 
-        .bottom-bar {
-            bottom: 0; height: 180px;
-            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
-            display: flex; flex-direction: column; align-items: center;
-            padding-bottom: 20px;
-        }
+.bottom{
+position:absolute;
+bottom:0;
+width:100%;
+padding:20px;
+background:linear-gradient(transparent,rgba(0,0,0,.8));
+display:flex;
+flex-direction:column;
+align-items:center;
+}
 
-        .shutter-btn {
-            width: 75px; height: 75px; border: 4px solid white;
-            border-radius: 50%; display: flex; justify-content: center;
-            align-items: center; transition: 0.3s;
-        }
-        .shutter-inner {
-            width: 60px; height: 60px; background: white;
-            border-radius: 50%; transition: 0.2s;
-        }
-        .shutter-btn:active .shutter-inner { transform: scale(0.8); }
+.controls{
+display:flex;
+align-items:center;
+gap:30px;
+margin-top:10px;
+}
 
-        .icon-btn {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; width: 45px; height: 45px; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(10px);
-        }
+button{
+border:2px solid white;
+background:transparent;
+color:white;
+padding:8px 15px;
+border-radius:25px;
+transition:.2s;
+}
 
-        /* Filters */
-        .filter-container {
-            display: flex; overflow-x: auto; width: 100%;
-            padding: 10px; gap: 15px; scrollbar-width: none;
-        }
-        .filter-box {
-            min-width: 60px; text-align: center; font-size: 10px;
-        }
-        .filter-preview {
-            width: 45px; height: 45px; border-radius: 50%;
-            border: 2px solid transparent; margin-bottom: 4px;
-        }
-        .filter-preview.active { border-color: var(--accent); }
+button:active{
+transform:scale(.85);
+}
 
-        /* Modals */
-        #gallery-modal {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #000; z-index: 100; display: none;
-            flex-direction: column; align-items: center; justify-content: center;
-        }
-        #gallery-img { max-width: 95%; max-height: 80%; border-radius: 10px; }
+.shutter{
+width:70px;
+height:70px;
+border-radius:50%;
+border:4px solid white;
+display:flex;
+justify-content:center;
+align-items:center;
+}
 
-        #status-msg {
-            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,242,255,0.2); padding: 5px 15px;
-            border-radius: 20px; font-size: 12px; border: 1px solid var(--accent);
-            display: none; z-index: 20;
-        }
+.inner{
+width:55px;
+height:55px;
+background:white;
+border-radius:50%;
+}
 
-        /* Animations */
-        .flash {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 1000; display: none;
-        }
-    </style>
+.record{
+background:red;
+}
+
+.filters{
+display:flex;
+overflow:auto;
+gap:10px;
+width:100%;
+padding:5px;
+}
+
+.filter{
+min-width:60px;
+font-size:11px;
+text-align:center;
+}
+
+.thumb{
+width:50px;
+height:50px;
+border-radius:8px;
+border:2px solid white;
+background-size:cover;
+}
+
+#gallery{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:black;
+display:none;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+z-index:50;
+}
+
+#gallery img,#gallery video{
+max-width:95%;
+max-height:80%;
+}
+
+.zoom{
+position:absolute;
+top:60px;
+left:50%;
+transform:translateX(-50%);
+width:70%;
+}
+
+</style>
 </head>
+
 <body>
 
-    <div class="flash" id="flash-effect"></div>
+<video id="video" autoplay playsinline></video>
+<canvas id="overlay"></canvas>
 
-    <div id="app-container">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="overlay"></canvas>
-        
-        <div id="status-msg">AI Face Tracking</div>
+<input type="range" min="1" max="3" step="0.1" value="1" class="zoom" id="zoom">
 
-        <!-- Top Controls -->
-        <div class="ui-overlay top-bar">
-            <button class="icon-btn" onclick="toggleFlash()"><i class="fas fa-bolt"></i></button>
-            <button class="icon-btn" onclick="toggleTimer()"><i class="fas fa-clock"></i></button>
-            <button class="icon-btn" onclick="switchCamera()"><i class="fas fa-camera-rotate"></i></button>
-        </div>
+<div class="top">
+<button onclick="switchCamera()">Switch</button>
+<button onclick="toggleTimer()">Timer</button>
+<button onclick="toggleRecord()">Video</button>
+</div>
 
-        <!-- Bottom Controls -->
-        <div class="ui-overlay bottom-bar">
-            <div class="filter-container" id="filters"></div>
+<div class="bottom">
 
-            <div style="display: flex; width: 100%; justify-content: space-around; align-items: center; margin-top: 10px;">
-                <div id="last-thumb" onclick="openGallery()" style="width:50px; height:50px; border-radius:8px; border:2px solid white; background-size:cover;"></div>
-                
-                <div class="shutter-btn" onclick="handleCapture()">
-                    <div class="shutter-inner"></div>
-                </div>
+<div class="filters" id="filters"></div>
 
-                <button class="icon-btn" onclick="alert('Settings feature coming soon!')"><i class="fas fa-cog"></i></button>
-            </div>
-        </div>
-    </div>
+<div class="controls">
 
-    <!-- Gallery View -->
-    <div id="gallery-modal">
-        <button class="icon-btn" style="position: absolute; top: 30px; right: 20px;" onclick="closeGallery()">
-            <i class="fas fa-times"></i>
-        </button>
-        <img id="gallery-img" src="">
-        <div style="margin-top: 25px; display: flex; gap: 30px;">
-            <button class="icon-btn" onclick="downloadImg()"><i class="fas fa-download"></i></button>
-            <button class="icon-btn" onclick="alert('AI Enhancement Applied!')"><i class="fas fa-magic"></i></button>
-        </div>
-    </div>
+<div class="thumb" id="thumb" onclick="openGallery()"></div>
 
-    <script>
-        const video = document.getElementById('video');
-        const overlay = document.getElementById('overlay');
-        const ctx = overlay.getContext('2d');
-        const statusMsg = document.getElementById('status-msg');
-        
-        let model, stream;
-        let isFront = false;
-        let lastPhoto = null;
-        let captureTimer = 0;
+<div class="shutter" onclick="capture()">
+<div class="inner"></div>
+</div>
 
-        const filters = [
-            { name: 'None', val: 'none' },
-            { name: 'Noir', val: 'grayscale(1) contrast(1.2)' },
-            { name: 'Vintage', val: 'sepia(0.6) contrast(1.1)' },
-            { name: 'Aqua', val: 'hue-rotate(160deg) saturate(1.5)' },
-            { name: 'Vivid', val: 'saturate(2) contrast(1.1)' },
-            { name: 'Bloom', val: 'brightness(1.2) saturate(1.2)' }
-        ];
+<button onclick="deleteLast()">Delete</button>
 
-        // 1. Start Camera
-        async function initCamera() {
-            try {
-                if (stream) stream.getTracks().forEach(track => track.stop());
+</div>
 
-                const constraints = {
-                    video: { 
-                        facingMode: isFront ? "user" : "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
+</div>
 
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
+<div id="gallery">
+<button onclick="closeGallery()">Close</button>
+<img id="gimg">
+<video id="gvid" controls></video>
+<button onclick="downloadFile()">Download</button>
+</div>
 
-                video.onloadedmetadata = () => {
-                    video.play();
-                    setupAI();
-                };
-            } catch (err) {
-                alert("HopWeb Camera Error: " + err.message);
-            }
-        }
+<script>
 
-        // 2. Setup AI Face Detection
-        async function setupAI() {
-            try {
-                statusMsg.style.display = 'block';
-                statusMsg.innerText = "Loading AI...";
-                model = await blazeface.load();
-                statusMsg.innerText = "AI Ready";
-                setTimeout(() => statusMsg.style.display = 'none', 2000);
-                detect();
-            } catch (e) {
-                statusMsg.innerText = "AI Disabled";
-            }
-        }
+const video=document.getElementById("video")
+const overlay=document.getElementById("overlay")
+const ctx=overlay.getContext("2d")
 
-        async function detect() {
-            if (!model || video.paused) return;
+let model
+let stream
+let facing="environment"
 
-            // Fix DOMException: element has no size
-            if (video.videoWidth > 0) {
-                overlay.width = video.videoWidth;
-                overlay.height = video.videoHeight;
-                
-                const preds = await model.estimateFaces(video, false);
-                ctx.clearRect(0, 0, overlay.width, overlay.height);
+let timer=0
+let recorder
+let recording=false
+let chunks=[]
 
-                if (preds.length > 0) {
-                    preds.forEach(p => {
-                        ctx.strokeStyle = "#00f2ff";
-                        ctx.lineWidth = 4;
-                        const start = p.topLeft;
-                        const end = p.bottomRight;
-                        const size = [end[0] - start[0], end[1] - start[1]];
-                        ctx.strokeRect(start[0], start[1], size[0], size[1]);
-                    });
-                }
-            }
-            requestAnimationFrame(detect);
-        }
+let media=[]
+let currentMedia=null
 
-        // 3. Capture Photo Logic
-        function handleCapture() {
-            if (captureTimer > 0) {
-                let count = captureTimer;
-                statusMsg.style.display = 'block';
-                const countInt = setInterval(() => {
-                    statusMsg.innerText = `Timer: ${count}s`;
-                    count--;
-                    if (count < 0) {
-                        clearInterval(countInt);
-                        statusMsg.style.display = 'none';
-                        capture();
-                    }
-                }, 1000);
-            } else {
-                capture();
-            }
-        }
+const filters=[
+{name:"Normal",val:"none"},
+{name:"Noir",val:"grayscale(1) contrast(1.2)"},
+{name:"Vintage",val:"sepia(.6)"},
+{name:"Aqua",val:"hue-rotate(160deg)"},
+{name:"Vivid",val:"saturate(2)"},
+{name:"Warm",val:"sepia(.3) saturate(1.5)"},
+{name:"Cool",val:"hue-rotate(200deg)"}
+]
 
-        function capture() {
-            // Flash effect
-            const flash = document.getElementById('flash-effect');
-            flash.style.display = 'block';
-            setTimeout(() => flash.style.display = 'none', 100);
+async function startCamera(){
 
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const c = canvas.getContext('2d');
-            
-            // Apply current filter to result
-            c.filter = getComputedStyle(video).filter;
-            c.drawImage(video, 0, 0);
-            
-            lastPhoto = canvas.toDataURL('image/jpeg');
-            document.getElementById('last-thumb').style.backgroundImage = `url(${lastPhoto})`;
-        }
+if(stream)stream.getTracks().forEach(t=>t.stop())
 
-        // 4. Gallery Functions
-        function openGallery() {
-            if (!lastPhoto) return alert("No photo captured yet!");
-            document.getElementById('gallery-img').src = lastPhoto;
-            document.getElementById('gallery-modal').style.display = 'flex';
-        }
+stream=await navigator.mediaDevices.getUserMedia({
+video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},
+audio:true
+})
 
-        function closeGallery() {
-            document.getElementById('gallery-modal').style.display = 'none';
-        }
+video.srcObject=stream
 
-        function downloadImg() {
-            const a = document.createElement('a');
-            a.download = `Lumina_${Date.now()}.jpg`;
-            a.href = lastPhoto;
-            a.click();
-        }
+video.onloadedmetadata=()=>{
+video.play()
+setupAI()
+}
 
-        // 5. App UI Logic
-        function switchCamera() {
-            isFront = !isFront;
-            initCamera();
-        }
+}
 
-        function toggleTimer() {
-            captureTimer = captureTimer === 0 ? 3 : (captureTimer === 3 ? 10 : 0);
-            alert(`Timer: ${captureTimer === 0 ? 'OFF' : captureTimer + 's'}`);
-        }
+function switchCamera(){
+facing=facing==="environment"?"user":"environment"
+startCamera()
+}
 
-        function toggleFlash() {
-            // Mobile WebViews generally don't allow flashlight via JS easily
-            // But we simulate the UI toggle
-            alert("Flash hardware access depends on your mobile browser support.");
-        }
+async function setupAI(){
 
-        function loadFilters() {
-            const container = document.getElementById('filters');
-            filters.forEach(f => {
-                const div = document.createElement('div');
-                div.className = 'filter-box';
-                div.innerHTML = `
-                    <div class="filter-preview" style="filter: ${f.val}; background: url('https://via.placeholder.com/50/333')"></div>
-                    <span>${f.name}</span>
-                `;
-                div.onclick = () => {
-                    video.style.filter = f.val;
-                    document.querySelectorAll('.filter-preview').forEach(el => el.classList.remove('active'));
-                    div.querySelector('.filter-preview').classList.add('active');
-                };
-                container.appendChild(div);
-            });
-        }
+model=await blazeface.load()
 
-        // Run
-        window.onload = () => {
-            loadFilters();
-            initCamera();
-        };
+detect()
 
-    </script>
+}
+
+async function detect(){
+
+if(video.videoWidth>0){
+
+overlay.width=video.videoWidth
+overlay.height=video.videoHeight
+
+const preds=await model.estimateFaces(video,false)
+
+ctx.clearRect(0,0,overlay.width,overlay.height)
+
+preds.forEach(p=>{
+const s=p.topLeft
+const e=p.bottomRight
+ctx.strokeStyle="#00f2ff"
+ctx.lineWidth=3
+ctx.strokeRect(s[0],s[1],e[0]-s[0],e[1]-s[1])
+})
+
+}
+
+requestAnimationFrame(detect)
+
+}
+
+function capture(){
+
+if(timer>0){
+
+let c=timer
+
+const t=setInterval(()=>{
+
+c--
+
+if(c<0){
+clearInterval(t)
+snap()
+}
+
+},1000)
+
+}else snap()
+
+}
+
+function snap(){
+
+const canvas=document.createElement("canvas")
+canvas.width=video.videoWidth
+canvas.height=video.videoHeight
+
+const c=canvas.getContext("2d")
+c.filter=getComputedStyle(video).filter
+c.drawImage(video,0,0)
+
+const img=canvas.toDataURL("image/jpeg")
+
+media.push({type:"img",data:img})
+
+saveMedia()
+
+updateThumb()
+
+}
+
+function toggleRecord(){
+
+if(!recording){
+
+chunks=[]
+
+recorder=new MediaRecorder(stream)
+
+recorder.ondataavailable=e=>chunks.push(e.data)
+
+recorder.onstop=saveVideo
+
+recorder.start()
+
+recording=true
+
+}else{
+
+recorder.stop()
+
+recording=false
+
+}
+
+}
+
+function saveVideo(){
+
+const blob=new Blob(chunks,{type:"video/webm"})
+const url=URL.createObjectURL(blob)
+
+media.push({type:"vid",data:url})
+
+saveMedia()
+
+updateThumb()
+
+}
+
+function updateThumb(){
+
+if(media.length===0)return
+
+const last=media[media.length-1]
+
+if(last.type==="img")
+thumb.style.backgroundImage=`url(${last.data})`
+
+else
+thumb.style.backgroundImage="url(https://cdn-icons-png.flaticon.com/512/727/727245.png)"
+
+}
+
+function openGallery(){
+
+if(media.length===0)return
+
+currentMedia=media[media.length-1]
+
+document.getElementById("gallery").style.display="flex"
+
+if(currentMedia.type==="img"){
+gimg.src=currentMedia.data
+gimg.style.display="block"
+gvid.style.display="none"
+}else{
+gvid.src=currentMedia.data
+gvid.style.display="block"
+gimg.style.display="none"
+}
+
+}
+
+function closeGallery(){
+gallery.style.display="none"
+}
+
+function downloadFile(){
+
+const a=document.createElement("a")
+
+a.href=currentMedia.data
+a.download="Lumina_"+Date.now()
+
+a.click()
+
+}
+
+function deleteLast(){
+
+media.pop()
+
+saveMedia()
+
+updateThumb()
+
+}
+
+function saveMedia(){
+
+localStorage.setItem("luminaMedia",JSON.stringify(media))
+
+}
+
+function loadMedia(){
+
+const m=localStorage.getItem("luminaMedia")
+
+if(m)media=JSON.parse(m)
+
+updateThumb()
+
+}
+
+function toggleTimer(){
+
+timer=timer===0?3:(timer===3?10:0)
+
+alert("Timer "+(timer===0?"OFF":timer+"s"))
+
+}
+
+function loadFilters(){
+
+filters.forEach(f=>{
+
+const div=document.createElement("div")
+
+div.className="filter"
+
+div.innerHTML=`<div style="width:45px;height:45px;border-radius:50%;background:#444;filter:${f.val}"></div>${f.name}`
+
+div.onclick=()=>video.style.filter=f.val
+
+filtersBox.appendChild(div)
+
+})
+
+}
+
+zoom.oninput=()=>video.style.transform="scale("+zoom.value+")"
+
+window.onload=()=>{
+loadFilters()
+loadMedia()
+startCamera()
+}
+
+</script>
+
 </body>
 </html>
